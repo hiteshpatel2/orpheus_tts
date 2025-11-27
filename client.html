@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <script async="" src="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.9.0/js/foundation.min.js" charset="utf-8"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.9.0/css/foundation.min.css">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Streaming Audio Playback</title>
+</head>
+<body>
+  <h1>Streaming Audio Playback</h1>
+  <form id="promptForm">
+    <label for="promptInput">Enter Prompt:</label><br>
+    <textarea id="promptInput" rows="4" cols="50" placeholder="Type your prompt here" required></textarea><br>
+    <button type="button" onclick="getAudioStream()">Play Audio</button>
+  </form>
+  <audio id="audioPlayer" controls autoplay></audio>
+  <script>
+    const base_url = `https://<enter-hostname-here>`;
+      
+      document.getElementById("promptForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      const prompt = document.getElementById("promptInput").value;
+      const encodedPrompt = encodeURIComponent(prompt);
+      // const audioUrl = `${base_url}/tts?prompt=` + encodedPrompt;
+      const audioUrl = `/stream/` + encodedPrompt;
+      
+      // Set the audio element's src to your endpoint to stream and play the audio data
+      const audioPlayer = document.getElementById("audioPlayer");
+      audioPlayer.src = audioUrl;
+      audioPlayer.load();
+      audioPlayer.play().catch(err => console.error("Playback error:", err));
+    });
+
+      function getAudioStream() {
+        const prompt = document.getElementById("promptInput").value;
+        const encodedPrompt = encodeURIComponent(prompt);
+        // const audioUrl = `${base_url}/tts?prompt=` + encodedPrompt;
+        const audioUrl = `/stream/` + encodedPrompt;
+        
+        // Set the audio element's src to your endpoint to stream and play the audio data
+        const audioPlayer = document.getElementById("audioPlayer");
+        audioPlayer.src = audioUrl;
+        audioPlayer.load();
+        audioPlayer.play().catch(err => console.error("Playback error:", err));
+      }
+
+    async function get_stream() {
+      const reader = response.body.getReader();
+      const concat = (arrayOne, arrayTwo) => {
+          let mergedArray = new Uint8Array(arrayOne.length + arrayTwo.length)
+          mergedArray.set([...arrayOne, ...arrayTwo])
+          return mergedArray
+      }
+
+        let timestamptowaituntil = 0
+        let tolog = []
+        let tolog2 = []
+
+        while (true) {
+            const { done, value } = await reader.read()
+
+            if (done) {
+                console.log(tolog)
+                console.log(tolog2)
+                console.log(this.ctx)
+                break
+            } else {
+                let audiodata = await this.ctx.decodeAudioData(value.buffer)
+                let source = this.ctx.createBufferSource()
+                source.buffer = audiodata
+                source.connect(this.ctx.destination)
+                // source.start(timestamptowaituntil, 0, audiodata.duration)                
+                // timestamptowaituntil +=audiodata.duration
+                source.start(timestamptowaituntil, 0, audiodata.duration - .75)
+                timestamptowaituntil += (audiodata.duration - .75 + this.ctx.currentTime)
+                tolog.push(audiodata)
+                tolog2.push(source)
+
+                
+
+                
+            }
+        }
+    }
+  </script>
+</body>
+</html>

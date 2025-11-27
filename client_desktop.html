@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <script async="" src="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.9.0/js/foundation.min.js" charset="utf-8"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.9.0/css/foundation.min.css">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Streaming Audio Playback</title>
+</head>
+<body>
+  <h1>Streaming Audio Playback</h1>
+  <form id="promptForm">
+    <label for="promptInput">Enter Prompt:</label><br>
+    <textarea id="promptInput" rows="4" cols="50" placeholder="Type your prompt here" required></textarea><br>
+    <button type="button" onclick="getAudioStream()">Play Audio</button>
+  </form>
+  <audio id="audioPlayer" controls autoplay></audio>
+  <script>
+    const base_url = `https://<enter-hostname-here>`;
+      
+      document.getElementById("promptForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      const prompt = document.getElementById("promptInput").value;
+      const encodedPrompt = encodeURIComponent(prompt);
+      // const audioUrl = `${base_url}/tts?prompt=` + encodedPrompt;
+      const audioUrl = `/stream/` + encodedPrompt;
+      
+      // Set the audio element's src to your endpoint to stream and play the audio data
+      const audioPlayer = document.getElementById("audioPlayer");
+      audioPlayer.src = audioUrl;
+      audioPlayer.load();
+      audioPlayer.play().catch(err => console.error("Playback error:", err));
+    });
+
+      function getAudioStream() {
+        const prompt = document.getElementById("promptInput").value;
+        const encodedPrompt = encodeURIComponent(prompt);
+        // const audioUrl = `${base_url}/tts?prompt=` + encodedPrompt;
+        const audioUrl = `http://ip_address:8080/stream/` + encodedPrompt;
+        
+        // Set the audio element's src to your endpoint to stream and play the audio data
+        const audioPlayer = document.getElementById("audioPlayer");
+        audioPlayer.src = audioUrl;
+        audioPlayer.load();
+        audioPlayer.play().catch(err => console.error("Playback error:", err));
+      }
+
+    async function get_stream() {
+      const audioCtx = new AudioContext();
+      let prompt = document.getElementById("promptInput").value;
+      let encodedPrompt = encodeURIComponent(prompt);
+      // const audioUrl = `${base_url}/tts?prompt=` + encodedPrompt;
+      let audioUrl = `http://44.244.56.39:8080/stream/` + encodedPrompt;
+      let response = await fetch(audioUrl)
+      let reader = response.body.getReader();
+      const concat = (arrayOne, arrayTwo) => {
+          let mergedArray = new Uint8Array(arrayOne.length + arrayTwo.length)
+          mergedArray.set([...arrayOne, ...arrayTwo])
+          return mergedArray
+      }
+
+        let timestamptowaituntil = 0
+        let tolog = []
+        let tolog2 = []
+
+        while (true) {
+            const { done, value } = await reader.read()
+
+            if (done) {
+                console.log(tolog)
+                console.log(tolog2)
+                console.log(audioCtx)
+                break
+            } else {
+                let audiodata = await audioCtx.decodeAudioData(value.buffer)
+                let source = audioCtx.createBufferSource()
+                source.buffer = audiodata
+                source.connect(audioCtx.destination)
+                // source.start(timestamptowaituntil, 0, audiodata.duration)                
+                // timestamptowaituntil +=audiodata.duration
+                source.start(timestamptowaituntil, 0, audiodata.duration - .75)
+                timestamptowaituntil += (audiodata.duration - .75 + audioCtx.currentTime)
+                tolog.push(audiodata)
+                tolog2.push(source)
+            }
+        }
+    }
+    
+    function webAudioStream() {
+      let prompt = document.getElementById("promptInput").value;
+        let encodedPrompt = encodeURIComponent(prompt);
+      fetch('http://<ip_address:8080>/stream/'+encodedPrompt).then((response) => {
+    // Get ReadableStreamDefaultReader from ReadableStream of response body
+    let reader = response.body.getReader();
+    
+    // Buffered WAV data processing with Audio API.
+    // Reference: 
+    // https://gist.github.com/hillct/b1b993470f0294e818c52df730448fa2#file-create-wav-from-buffer-js
+    async function read() {
+        // Get next chunk in the stream's internal queue and
+        // a flag to identify whether there exists a data in queue.
+        const { value, done } = await reader.read();
+        if (value && value.buffer) {
+            // Get ArrayBuffer within chunked response.
+            let dataBuffer = value.buffer;
+            // Only process data buffers with expected buffer size
+            // to avoid distortion.  
+            if (dataBuffer.byteLength === getBufferSize()) {
+                // Decode audio data from chunked response data
+                // and push that onto stack.  
+                audioContext.decodeAudioData(dataBuffer, (audioBuffer) => {
+                    audioStack.push(audioBuffer);
+                    // When stack started to fill, process audio data stack
+                    if (audioStack.length) {
+                        processAudioBuffer();
+                    }
+                });
+            }
+
+            if (done) {
+                // Stream's internal queue is empty. Stop reading.
+                return;
+            }
+            
+            // Process next data chunk. 
+            read();
+        }
+    }
+
+    // Start processing ReadableStream of fetch API response.
+    read();
+});
+    }
+
+    function processAudioBuffer() {
+    // Process stack until it is emptied.
+    while (audioStack.length) {
+        // Get and remove first chunk from stack.
+        let buffer = audioStack.shift();
+        // Create source node of AudioContext
+        let source = audioContext.createBufferSource();
+        // Set decoded audio buffer data as source node buffer
+        // to inform browser with the media asset to be played.
+        source.buffer = buffer;
+        // Establish audio graph 
+        source.connect(modGain)
+              .connect(bypasser)
+              .connect(audioContext.destination);
+        if (nextTime == 0)
+            // Add 250ms latency to work well across systems.
+            // Tune this appropriately for your need.
+            nextTime = audioContext.currentTime + 0.5;
+        // Start playing  
+        source.start(nextTime);
+        // Make the next buffer wait the length of the 
+        // last buffer before being played 
+        nextTime += source.buffer.duration; 
+    };
+}
+  </script>
+</body>
+</html>
